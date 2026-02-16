@@ -1,0 +1,16 @@
+{
+  "templates": [
+    {
+      "name": "Grid - Mtg Notes",
+      "filename": "P Grid Meeting",
+      "iconCode": "\ue999",
+      "categories": ["Grids"]
+    },
+    {
+      "name": "Grid - Srmn Notes",
+      "filename": "P Grid Sermon",
+      "iconCode": "\ue999",
+      "categories": ["Grids"]
+    }
+  ]
+}

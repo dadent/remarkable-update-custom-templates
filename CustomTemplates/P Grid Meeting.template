@@ -1,0 +1,85 @@
+{
+    "name": "Grid - Mtg Notes",
+    "author": "DAdent",
+    "templateVersion": "1.0.0",
+    "formatVersion": 1,
+    "categories": ["Grids"],
+    "orientation": "portrait",
+    "constants": [
+        {"gridSize": 52 },
+        {"magicGridOffset": -25 },
+        {"GridXpos": "templateWidth / 2 - templateHeight / 2 + magicGridOffset" },
+        {"mobileMaxWidth": 1000},
+        {"mobileOffsetX": "160 - 95 + 12"},
+        {"offsetX": "templateWidth > mobileMaxWidth ? 0 : mobileOffsetX"},
+        {"magicTopicOffsetX": 685},
+        {"magicDateOffsetX": 300},
+        {"magicLineOffsetX": 186},
+        {"topicOffsetX": "templateWidth < mobileMaxWidth || templateHeight < mobileMaxWidth ? (templateWidth / 2 - 150) : magicTopicOffsetX"},
+        {"dateOffsetX": "templateWidth < mobileMaxWidth || templateHeight < mobileMaxWidth ? (templateWidth / 2 - 250) : magicDateOffsetX"},
+        {"linesOffsetX": "templateWidth < mobileMaxWidth ? 120 : magicLineOffsetX"}
+    ],
+    "items": [
+         {
+            "id": "hlines",
+            "type": "group",
+            "boundingBox": { "x": 0, "y": 0, "width": "templateWidth", "height": "gridSize" },
+            "repeat": { "rows": "infinite", "columns": "infinite" },
+            "children": [
+                {
+                    "id": "hline",
+                    "type": "path",
+                    "data": [ "M", 0, 0, "L", "parentWidth", 0 ]
+                }
+            ]
+        }, {
+            "id": "vlines",
+            "type": "group",
+            "boundingBox": { "x": "GridXpos", "y": 0, "width": "gridSize", "height": "templateHeight" },
+            "repeat": { "rows": "infinite", "columns": "infinite" },
+            "children": [
+                {
+                    "id": "vline",
+                    "type": "path",
+                    "data": [ "M", 0, 0, "L", 0, "parentHeight" ]
+                }
+            ]
+        }, {
+            "type": "group",
+            "boundingBox": {
+                "x": 0,
+                "y": "offsetX",
+                "width": "templateHeight",
+                "height": "templateHeight"
+            },
+            "children": [
+                {
+                    "type": "text",
+                    "text": "Topic:",
+                    "fontSize": 60,
+                    "position": {
+                        "x": "templateWidth / 2 - topicOffsetX",
+                        "y": 95
+                    }
+                },
+                {
+                    "type": "text",
+                    "text": "DATE:",
+                    "fontSize": 40,
+                    "position": {
+                        "x": "templateWidth / 2 + dateOffsetX",
+                        "y": 95
+                    }
+                },
+                {
+                    "id": "one-h-line",
+                    "type": "path",
+                    "strokeWidth": 3,
+                    "data": [
+                        "M", "templateWidth / 2 - templateHeight / 2", 103, "L", "parentWidth", 103
+                    ]
+                }
+            ]
+        }
+    ]
+}
