@@ -1,5 +1,25 @@
 # Instructions to update my templates on the reMarkable Paper Pro
 
+## Automated Method (Recommended)
+
+Use the PowerShell script to automatically install custom templates:
+
+1. Connect the reMarkable Paper Pro via USB to the host computer
+2. Run the script:
+   ```powershell
+   .\Update-RemarkableTemplates.ps1
+   ```
+3. The script will prompt for the device IP and password, then handle everything automatically.
+
+Optional parameters for non-interactive use:
+```powershell
+.\Update-RemarkableTemplates.ps1 -DeviceIP "10.11.99.1" -WorkingDirectory "C:\Backups"
+```
+
+---
+
+## Manual Method (Reference)
+
 - Connect the reMarkable Paper Pro via USB to the host computer
 
 ## Key Information
