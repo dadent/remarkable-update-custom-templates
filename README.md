@@ -1,12 +1,12 @@
 # UpdateRemarkable
 
-A PowerShell automation tool for installing custom templates on a reMarkable Paper Pro tablet.
+A PowerShell automation tool for installing custom templates on a reMarkable Paper Pro tablet.  This project contains the PowerShell script and a set of unit tests to support updates. 
 
 ## Background
 
 After every system update, the reMarkable Paper Pro resets its custom templates. Re-adding them used to be a tedious manual process involving two command windows, multiple SSH/SCP commands, and careful JSON editing (the original manual steps are preserved in `Template_Update_Instructions.md`).
 
-This project automates that entire workflow into a single PowerShell script. The script was built iteratively with the help of GitHub Copilot — starting from the manual instructions, then extracting testable functions into a module, and adding a full Pester 5 test suite to validate correctness before connecting to a real device.
+This project automates that entire workflow into a single PowerShell script. The script was built iteratively with the help of GitHub Copilot — starting from the manual instructions, then extracting testable functions into a module, and adding a full Pester 5 test suite to validate correctness before connecting to a real device. 
 
 ## Running the Script
 
@@ -57,18 +57,14 @@ The test suite uses [Pester 5](https://pester.dev/) and requires no device conne
 # Install Pester 5 (one-time)
 Install-Module -Name Pester -MinimumVersion 5.0 -Force -SkipPublisherCheck -Scope CurrentUser
 
-# Run all tests (Import-Module is required to ensure Pester 5 is loaded,
-# since an older version may also be installed)
+# Run all tests
 Import-Module Pester -MinimumVersion 5.0 -Force
 Invoke-Pester -Path .\Update-RemarkableTemplates.Tests.ps1 -Output Detailed
 ```
 
-> **Note:** The `Import-Module` line is required before each `Invoke-Pester` call. If Pester 3.x is also installed on your system, PowerShell may load it by default, and the `-Output` parameter will fail with an ambiguity error.
-
 To run a single test by name:
 
 ```powershell
-Import-Module Pester -MinimumVersion 5.0 -Force
 Invoke-Pester -Path .\Update-RemarkableTemplates.Tests.ps1 -Output Detailed -Filter @{ FullName = "*partial overlap*" }
 ```
 
