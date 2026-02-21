@@ -32,52 +32,14 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+# --- Import module ---
+Import-Module (Join-Path $PSScriptRoot "RemarkableTemplates.psm1") -Force
+
 # --- Constants ---
 $RemoteTemplateDir = "/usr/share/remarkable/templates"
 $RemoteUser = "root"
 $TemplatesToAddPath = Join-Path $PSScriptRoot "templates_to_add.json"
 $CustomTemplatesDir = Join-Path $PSScriptRoot "CustomTemplates"
-
-# --- Helper Functions ---
-
-function Invoke-RemoteSSH {
-    param(
-        [string]$IP,
-        [string]$KeyPath,
-        [string]$Command
-    )
-    $output = & ssh -i $KeyPath -o StrictHostKeyChecking=no -o UserKnownHostsFile=NUL -o BatchMode=yes "${RemoteUser}@${IP}" $Command 2>&1
-    if ($LASTEXITCODE -ne 0) {
-        throw "SSH command failed (exit code $LASTEXITCODE): $Command`n$output"
-    }
-    return $output
-}
-
-function Send-FileToDevice {
-    param(
-        [string]$IP,
-        [string]$KeyPath,
-        [string]$LocalPath,
-        [string]$RemotePath
-    )
-    & scp -i $KeyPath -o StrictHostKeyChecking=no -o UserKnownHostsFile=NUL -o BatchMode=yes $LocalPath "${RemoteUser}@${IP}:${RemotePath}" 2>&1
-    if ($LASTEXITCODE -ne 0) {
-        throw "SCP upload failed for: $LocalPath"
-    }
-}
-
-function Receive-FileFromDevice {
-    param(
-        [string]$IP,
-        [string]$KeyPath,
-        [string]$RemotePath,
-        [string]$LocalPath
-    )
-    & scp -i $KeyPath -o StrictHostKeyChecking=no -o UserKnownHostsFile=NUL -o BatchMode=yes "${RemoteUser}@${IP}:${RemotePath}" $LocalPath 2>&1
-    if ($LASTEXITCODE -ne 0) {
-        throw "SCP download failed for: $RemotePath"
-    }
-}
 
 # =====================================================================
 # PHASE 1: Setup & Validation
@@ -122,28 +84,7 @@ Write-Host "Working directory: $WorkingDirectory" -ForegroundColor Green
 
 Write-Host "`nValidating template files..." -ForegroundColor Cyan
 
-if (-not (Test-Path $TemplatesToAddPath)) {
-    throw "templates_to_add.json not found at: $TemplatesToAddPath"
-}
-if (-not (Test-Path $CustomTemplatesDir)) {
-    throw "CustomTemplates directory not found at: $CustomTemplatesDir"
-}
-
-$templatesToAdd = (Get-Content $TemplatesToAddPath -Raw | ConvertFrom-Json).templates
-$templateFiles = Get-ChildItem -Path $CustomTemplatesDir -Filter "*.template" | ForEach-Object { $_.BaseName }
-
-# Check every JSON entry has a matching .template file
-$jsonFilenames = $templatesToAdd | ForEach-Object { $_.filename }
-$missingFiles = $jsonFilenames | Where-Object { $_ -notin $templateFiles }
-if ($missingFiles) {
-    throw "The following entries in templates_to_add.json have no matching .template file in CustomTemplates/:`n  $($missingFiles -join "`n  ")"
-}
-
-# Check every .template file has a matching JSON entry
-$missingEntries = $templateFiles | Where-Object { $_ -notin $jsonFilenames }
-if ($missingEntries) {
-    throw "The following .template files in CustomTemplates/ have no matching entry in templates_to_add.json:`n  $($missingEntries -join "`n  ")"
-}
+$templatesToAdd = Test-TemplateFiles -TemplatesToAddPath $TemplatesToAddPath -CustomTemplatesDir $CustomTemplatesDir
 
 Write-Host "  Validated $($templatesToAdd.Count) template(s) - all files and JSON entries match." -ForegroundColor Green
 
@@ -218,18 +159,10 @@ try {
     Write-Host "`nMerging templates..." -ForegroundColor Cyan
 
     $deviceTemplates = Get-Content $sourceTemplatesPath -Raw | ConvertFrom-Json
-    $deviceFilenames = $deviceTemplates.templates | ForEach-Object { $_.filename }
+    $mergeResult = Merge-Templates -DeviceTemplates $deviceTemplates.templates -CustomTemplates $templatesToAdd
 
-    $toAdd = @()
-    $skipped = @()
-
-    foreach ($template in $templatesToAdd) {
-        if ($template.filename -in $deviceFilenames) {
-            $skipped += $template
-        } else {
-            $toAdd += $template
-        }
-    }
+    $toAdd = $mergeResult.Added
+    $skipped = $mergeResult.Skipped
 
     if ($skipped.Count -gt 0) {
         Write-Host "  Skipping (already on device):" -ForegroundColor Yellow
@@ -246,13 +179,8 @@ try {
             Write-Host "    + $($a.name) ($($a.filename))" -ForegroundColor Green
         }
 
-        # Build merged templates array
-        $mergedTemplates = @($deviceTemplates.templates)
-        foreach ($a in $toAdd) {
-            $mergedTemplates += $a
-        }
-
-        $mergedObject = @{ templates = $mergedTemplates }
+        # Build merged JSON
+        $mergedObject = @{ templates = $mergeResult.Merged }
         $updatedTemplatesPath = Join-Path $workingFolder "updated_templates.json"
         $mergedObject | ConvertTo-Json -Depth 10 | Set-Content -Path $updatedTemplatesPath -Encoding UTF8
         Write-Host "  Merged templates saved to: $updatedTemplatesPath" -ForegroundColor Green
