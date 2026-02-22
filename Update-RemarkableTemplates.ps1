@@ -125,7 +125,7 @@ try {
         # Build merged JSON
         $mergedObject = @{ templates = $mergeResult.Merged }
         $updatedTemplatesPath = Join-Path $workingFolder "updated_templates.json"
-        $mergedObject | ConvertTo-Json -Depth 10 | Set-Content -Path $updatedTemplatesPath -Encoding UTF8
+        $mergedObject | ConvertTo-Json -Depth 10 -EscapeHandling EscapeNonAscii | Set-Content -Path $updatedTemplatesPath -Encoding UTF8
         Write-Host "  Merged templates saved to: $updatedTemplatesPath" -ForegroundColor Green
 
         # =============================================================
