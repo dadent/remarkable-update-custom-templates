@@ -23,7 +23,6 @@ The script will prompt for any missing parameters interactively.
 | Parameter | Type | Required | Description |
 |---|---|---|---|
 | `-DeviceIP` | String | No | IP address of the reMarkable device. If omitted, prompts with a default of `10.11.99.1`. |
-| `-DevicePassword` | SecureString | No | Device root password (found in Settings → Help → Copyrights & Licenses). If omitted, prompts interactively. |
 | `-WorkingDirectory` | String | No | Directory where the timestamped backup folder will be created. If omitted, opens a folder-browser dialog. |
 
 ### Examples
@@ -42,12 +41,12 @@ The script will prompt for any missing parameters interactively.
 ### What the Script Does
 
 1. **Validates** that `templates_to_add.json` and the `CustomTemplates/` folder are in sync
-2. **Creates an ephemeral SSH key** and copies it to the device (one password entry)
-3. **Backs up** the device's current `templates.json`
-4. **Merges** custom templates into the device list, skipping any already present
-5. **Deploys** the updated `templates.json` and new `.template` files to the device
-6. **Cleans up** the ephemeral key from both the device and local machine
-7. **Prompts** you to reboot the device to apply changes
+2. **Backs up** the device's current `templates.json`
+3. **Merges** custom templates into the device list, skipping any already present
+4. **Deploys** the updated `templates.json` and new `.template` files to the device (remounts filesystem as read-write, then back to read-only)
+5. **Prompts** you to reboot the device to apply changes
+
+> **Note:** Each SSH and SCP command will prompt for the device password interactively.
 
 ## Running the Tests
 

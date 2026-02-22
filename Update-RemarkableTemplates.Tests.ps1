@@ -147,14 +147,14 @@ Describe "Invoke-RemoteSSH" {
     It "Returns output on success" {
         Mock ssh { $global:LASTEXITCODE = 0; "hello world" } -ModuleName RemarkableTemplates
 
-        $result = Invoke-RemoteSSH -IP "1.2.3.4" -KeyPath "C:\fake\key" -Command "echo hello"
+        $result = Invoke-RemoteSSH -IP "1.2.3.4" -Command "echo hello"
         $result | Should -Be "hello world"
     }
 
     It "Throws on non-zero exit code" {
         Mock ssh { $global:LASTEXITCODE = 1; "error output" } -ModuleName RemarkableTemplates
 
-        { Invoke-RemoteSSH -IP "1.2.3.4" -KeyPath "C:\fake\key" -Command "bad cmd" } |
+        { Invoke-RemoteSSH -IP "1.2.3.4" -Command "bad cmd" } |
             Should -Throw "*SSH command failed*"
     }
 }
@@ -163,14 +163,14 @@ Describe "Send-FileToDevice" {
     It "Succeeds without error on exit code 0" {
         Mock scp { $global:LASTEXITCODE = 0 } -ModuleName RemarkableTemplates
 
-        { Send-FileToDevice -IP "1.2.3.4" -KeyPath "C:\fake\key" -LocalPath "C:\file.txt" -RemotePath "/tmp/" } |
+        { Send-FileToDevice -IP "1.2.3.4" -LocalPath "C:\file.txt" -RemotePath "/tmp/" } |
             Should -Not -Throw
     }
 
     It "Throws on non-zero exit code" {
         Mock scp { $global:LASTEXITCODE = 1 } -ModuleName RemarkableTemplates
 
-        { Send-FileToDevice -IP "1.2.3.4" -KeyPath "C:\fake\key" -LocalPath "C:\file.txt" -RemotePath "/tmp/" } |
+        { Send-FileToDevice -IP "1.2.3.4" -LocalPath "C:\file.txt" -RemotePath "/tmp/" } |
             Should -Throw "*SCP upload failed*"
     }
 }
@@ -179,14 +179,14 @@ Describe "Receive-FileFromDevice" {
     It "Succeeds without error on exit code 0" {
         Mock scp { $global:LASTEXITCODE = 0 } -ModuleName RemarkableTemplates
 
-        { Receive-FileFromDevice -IP "1.2.3.4" -KeyPath "C:\fake\key" -RemotePath "/tmp/file.txt" -LocalPath "C:\file.txt" } |
+        { Receive-FileFromDevice -IP "1.2.3.4" -RemotePath "/tmp/file.txt" -LocalPath "C:\file.txt" } |
             Should -Not -Throw
     }
 
     It "Throws on non-zero exit code" {
         Mock scp { $global:LASTEXITCODE = 1 } -ModuleName RemarkableTemplates
 
-        { Receive-FileFromDevice -IP "1.2.3.4" -KeyPath "C:\fake\key" -RemotePath "/tmp/file.txt" -LocalPath "C:\file.txt" } |
+        { Receive-FileFromDevice -IP "1.2.3.4" -RemotePath "/tmp/file.txt" -LocalPath "C:\file.txt" } |
             Should -Throw "*SCP download failed*"
     }
 }

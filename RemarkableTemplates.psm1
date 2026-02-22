@@ -18,12 +18,11 @@ $script:RemoteTemplateDir = "/usr/share/remarkable/templates"
 function Invoke-RemoteSSH {
     param(
         [Parameter(Mandatory)][string]$IP,
-        [Parameter(Mandatory)][string]$KeyPath,
         [Parameter(Mandatory)][string]$Command
     )
-    $output = & ssh -i $KeyPath -o StrictHostKeyChecking=no -o UserKnownHostsFile=NUL -o BatchMode=yes "${script:RemoteUser}@${IP}" $Command 2>&1
+    $output = & ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=NUL "${script:RemoteUser}@${IP}" $Command
     if ($LASTEXITCODE -ne 0) {
-        throw "SSH command failed (exit code $LASTEXITCODE): $Command`n$output"
+        throw "SSH command failed (exit code $LASTEXITCODE): $Command"
     }
     return $output
 }
@@ -31,11 +30,10 @@ function Invoke-RemoteSSH {
 function Send-FileToDevice {
     param(
         [Parameter(Mandatory)][string]$IP,
-        [Parameter(Mandatory)][string]$KeyPath,
         [Parameter(Mandatory)][string]$LocalPath,
         [Parameter(Mandatory)][string]$RemotePath
     )
-    & scp -i $KeyPath -o StrictHostKeyChecking=no -o UserKnownHostsFile=NUL -o BatchMode=yes $LocalPath "${script:RemoteUser}@${IP}:${RemotePath}" 2>&1
+    & scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=NUL $LocalPath "${script:RemoteUser}@${IP}:${RemotePath}"
     if ($LASTEXITCODE -ne 0) {
         throw "SCP upload failed for: $LocalPath"
     }
@@ -44,11 +42,10 @@ function Send-FileToDevice {
 function Receive-FileFromDevice {
     param(
         [Parameter(Mandatory)][string]$IP,
-        [Parameter(Mandatory)][string]$KeyPath,
         [Parameter(Mandatory)][string]$RemotePath,
         [Parameter(Mandatory)][string]$LocalPath
     )
-    & scp -i $KeyPath -o StrictHostKeyChecking=no -o UserKnownHostsFile=NUL -o BatchMode=yes "${script:RemoteUser}@${IP}:${RemotePath}" $LocalPath 2>&1
+    & scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=NUL "${script:RemoteUser}@${IP}:${RemotePath}" $LocalPath
     if ($LASTEXITCODE -ne 0) {
         throw "SCP download failed for: $RemotePath"
     }

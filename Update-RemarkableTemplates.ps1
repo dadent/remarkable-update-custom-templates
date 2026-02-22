@@ -4,15 +4,10 @@
 
 .DESCRIPTION
     Automates the process of adding custom templates to a reMarkable Paper Pro device.
-    Uses native Windows OpenSSH with ephemeral key-based authentication (no external modules).
-    The script generates a temporary SSH key pair, copies it to the device (one manual password
-    entry), performs all operations using the key, then removes the key from both sides.
+    Uses native Windows OpenSSH for all device communication. Each SSH and SCP command will prompt for the device password interactively.
 
 .PARAMETER DeviceIP
     IP address of the reMarkable device. Defaults to prompting with 10.11.99.1.
-
-.PARAMETER DevicePassword
-    Device password as a SecureString. If omitted, prompts interactively.
 
 .PARAMETER WorkingDirectory
     Directory where the timestamped backup folder will be created.
@@ -26,7 +21,6 @@
 
 param(
     [string]$DeviceIP,
-    [SecureString]$DevicePassword,
     [string]$WorkingDirectory
 )
 
@@ -57,11 +51,6 @@ if (-not $DeviceIP) {
 }
 Write-Host "Device IP: $DeviceIP" -ForegroundColor Green
 
-# Device Password (only used for initial key copy)
-if (-not $DevicePassword) {
-    $DevicePassword = Read-Host "Enter device password (from Settings > Help > Copyrights & Licenses)" -AsSecureString
-}
-
 # Working Directory
 if (-not $WorkingDirectory) {
     Add-Type -AssemblyName System.Windows.Forms
@@ -88,54 +77,8 @@ $templatesToAdd = Test-TemplateFiles -TemplatesToAddPath $TemplatesToAddPath -Cu
 
 Write-Host "  Validated $($templatesToAdd.Count) template(s) - all files and JSON entries match." -ForegroundColor Green
 
-# =====================================================================
-# PHASE 2: Ephemeral Key Setup
-# =====================================================================
-
-Write-Host "`nSetting up ephemeral SSH key..." -ForegroundColor Cyan
-
-$tempKeyDir = Join-Path ([System.IO.Path]::GetTempPath()) "rm_temp_key_$(Get-Date -Format 'yyyyMMddHHmmss')"
-New-Item -ItemType Directory -Path $tempKeyDir -Force | Out-Null
-$tempKeyPath = Join-Path $tempKeyDir "rm_temp_key"
-$tempPubKeyPath = "$tempKeyPath.pub"
-
-# Generate key pair
-& ssh-keygen -t ed25519 -f $tempKeyPath -N "" -q 2>&1
-if ($LASTEXITCODE -ne 0) {
-    throw "Failed to generate SSH key pair."
-}
-
-$pubKeyContent = Get-Content $tempPubKeyPath -Raw
-
-Write-Host "  Copying public key to device..." -ForegroundColor White
-Write-Host "  You may be prompted for the device password." -ForegroundColor Yellow
-
-# Use scp to copy public key to device, then ssh to append to authorized_keys
-# The user will enter the password manually for these two commands
-& scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=NUL $tempPubKeyPath "${RemoteUser}@${DeviceIP}:/tmp/rm_temp_key.pub"
-if ($LASTEXITCODE -ne 0) {
-    throw "Failed to copy public key to device. Check your password and connection."
-}
-
-& ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=NUL "${RemoteUser}@${DeviceIP}" "mkdir -p /root/.ssh && cat /tmp/rm_temp_key.pub >> /root/.ssh/authorized_keys && rm /tmp/rm_temp_key.pub"
-if ($LASTEXITCODE -ne 0) {
-    throw "Failed to install public key on device."
-}
-
-# Verify key-based auth works
-Write-Host "  Verifying key-based authentication..." -ForegroundColor White
-$testOutput = & ssh -i $tempKeyPath -o StrictHostKeyChecking=no -o UserKnownHostsFile=NUL -o BatchMode=yes "${RemoteUser}@${DeviceIP}" "echo ok" 2>&1
-if ($LASTEXITCODE -ne 0 -or $testOutput -notcontains "ok") {
-    throw "Key-based authentication verification failed."
-}
-Write-Host "  Ephemeral key authentication established." -ForegroundColor Green
-
-# =====================================================================
 # Track state for cleanup
-# =====================================================================
 $fsReadWrite = $false
-$keyInstalledOnDevice = $true
-
 try {
     # =================================================================
     # PHASE 3: Connect & Backup
@@ -149,7 +92,7 @@ try {
     Write-Host "  Working folder: $workingFolder" -ForegroundColor Green
 
     $sourceTemplatesPath = Join-Path $workingFolder "source_templates.json"
-    Receive-FileFromDevice -IP $DeviceIP -KeyPath $tempKeyPath -RemotePath "$RemoteTemplateDir/templates.json" -LocalPath $sourceTemplatesPath
+    Receive-FileFromDevice -IP $DeviceIP -RemotePath "$RemoteTemplateDir/templates.json" -LocalPath $sourceTemplatesPath
     Write-Host "  Device templates.json backed up to: $sourceTemplatesPath" -ForegroundColor Green
 
     # =================================================================
@@ -193,23 +136,23 @@ try {
 
         # Remount as read-write
         Write-Host "  Remounting filesystem as read-write..." -ForegroundColor White
-        Invoke-RemoteSSH -IP $DeviceIP -KeyPath $tempKeyPath -Command "mount -o remount,rw /"
+        Invoke-RemoteSSH -IP $DeviceIP -Command "mount -o remount,rw /"
         $fsReadWrite = $true
 
         # Upload new .template files
         foreach ($a in $toAdd) {
             $templateFilePath = Join-Path $CustomTemplatesDir "$($a.filename).template"
             Write-Host "  Uploading: $($a.filename).template" -ForegroundColor White
-            Send-FileToDevice -IP $DeviceIP -KeyPath $tempKeyPath -LocalPath $templateFilePath -RemotePath "$RemoteTemplateDir/"
+            Send-FileToDevice -IP $DeviceIP -LocalPath $templateFilePath -RemotePath "$RemoteTemplateDir/"
         }
 
         # Upload merged templates.json
         Write-Host "  Uploading updated templates.json..." -ForegroundColor White
-        Send-FileToDevice -IP $DeviceIP -KeyPath $tempKeyPath -LocalPath $updatedTemplatesPath -RemotePath "$RemoteTemplateDir/templates.json"
+        Send-FileToDevice -IP $DeviceIP -LocalPath $updatedTemplatesPath -RemotePath "$RemoteTemplateDir/templates.json"
 
         # Remount as read-only
         Write-Host "  Remounting filesystem as read-only..." -ForegroundColor White
-        Invoke-RemoteSSH -IP $DeviceIP -KeyPath $tempKeyPath -Command "mount -o remount,ro /"
+        Invoke-RemoteSSH -IP $DeviceIP -Command "mount -o remount,ro /"
         $fsReadWrite = $false
 
         Write-Host "  Deployment complete." -ForegroundColor Green
@@ -226,27 +169,10 @@ finally {
     if ($fsReadWrite) {
         Write-Host "  Remounting filesystem as read-only (error recovery)..." -ForegroundColor Yellow
         try {
-            Invoke-RemoteSSH -IP $DeviceIP -KeyPath $tempKeyPath -Command "mount -o remount,ro /"
+            Invoke-RemoteSSH -IP $DeviceIP -Command "mount -o remount,ro /"
         } catch {
             Write-Host "  WARNING: Failed to remount filesystem as read-only: $_" -ForegroundColor Red
         }
-    }
-
-    # Remove ephemeral key from device
-    if ($keyInstalledOnDevice) {
-        Write-Host "  Removing ephemeral key from device..." -ForegroundColor White
-        try {
-            $escapedPubKey = ($pubKeyContent.Trim() -replace '[/]', '\/')
-            Invoke-RemoteSSH -IP $DeviceIP -KeyPath $tempKeyPath -Command "sed -i '/$escapedPubKey/d' /root/.ssh/authorized_keys"
-        } catch {
-            Write-Host "  WARNING: Failed to remove ephemeral key from device: $_" -ForegroundColor Red
-        }
-    }
-
-    # Delete local temp key pair
-    if (Test-Path $tempKeyDir) {
-        Remove-Item -Path $tempKeyDir -Recurse -Force
-        Write-Host "  Local temp keys deleted." -ForegroundColor Green
     }
 }
 
