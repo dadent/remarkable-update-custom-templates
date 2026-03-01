@@ -1,6 +1,6 @@
 # UpdateRemarkable
 
-A PowerShell automation tool for installing custom templates on a reMarkable Paper Pro tablet.  This project contains the PowerShell script and a set of unit tests to support updates. 
+A PowerShell automation tool for installing custom templates on a reMarkable Paper Pro tablet.  This project contains the PowerShell script and a set of unit tests to support updates.  I developed this script/repo using AI workflows. 
 
 ## Background
 
